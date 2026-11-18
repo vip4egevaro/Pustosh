@@ -1,0 +1,6 @@
+.godot/
+.import/
+visual-artifacts/
+ci-output/
+.DS_Store
+Thumbs.db
