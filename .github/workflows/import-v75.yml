@@ -1,0 +1,53 @@
+name: Import Pustosh V7.5 archive
+
+on:
+  push:
+    paths:
+      - 'pustosh_v7_5.part*.bin'
+      - '.github/workflows/import-v75.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify archive parts and unpack V7.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          parts=(pustosh_v7_5.part*.bin)
+          if [ "${#parts[@]}" -ne 5 ]; then
+            echo "::error::Expected all five files: pustosh_v7_5.part00.bin to part04.bin"
+            exit 1
+          fi
+          for i in 0 1 2 3 4; do
+            test -f "pustosh_v7_5.part0${i}.bin"
+          done
+          cat "${parts[@]}" > /tmp/pustosh_v7_5.zip
+          echo '0eb90b9f2a223402283b9d0ed49211df5015219fa349dcaaf5d7d65a19564361  /tmp/pustosh_v7_5.zip' | sha256sum -c -
+          mkdir -p /tmp/pustosh-v75
+          unzip -q /tmp/pustosh_v7_5.zip -d /tmp/pustosh-v75
+          test -f /tmp/pustosh-v75/Pustosh_V7_5_ClayUI/project.godot
+          cp -a /tmp/pustosh-v75/Pustosh_V7_5_ClayUI/. .
+          test -f main_world.tscn
+          test -f scripts/main.gd
+          rm -f "${parts[@]}"
+      - name: Commit unpacked editable Godot project
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Project already imported"
+          else
+            git commit -m "Import original Pustosh V7.5 game assets and scripts"
+            git push
+          fi
