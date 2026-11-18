@@ -1,11 +1,11 @@
-name: Pustosh V6 - graphical playtest
+name: Pustosh V7.5 - graphical playtest
 
 on:
   workflow_dispatch:
   push:
     paths:
       - 'project.godot'
-      - 'main.tscn'
+      - 'main_world.tscn'
       - 'scripts/**'
       - 'assets/**'
       - 'ci/**'
@@ -17,35 +17,40 @@ permissions:
 jobs:
   visual-playtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Verify game files
+        run: |
+          test -f project.godot
+          test -f main_world.tscn
+          test -f scripts/main.gd
       - name: Install Godot
         uses: chickensoft-games/setup-godot@v2
         with:
           version: 4.7.2
           use-dotnet: false
           include-templates: false
-      - name: Install virtual display and OpenGL software renderer
+      - name: Install display and software OpenGL
         run: |
           sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends             xvfb xauth libgl1 libgl1-mesa-dri libfontconfig1 libxcursor1 libxinerama1 libxrandr2 libxi6
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libfontconfig1 libxcursor1 libxinerama1 libxrandr2 libxi6
       - name: Import resources
         run: |
           godot --version
-          timeout 240s godot --headless --path . --import
-      - name: Render game and exercise interactions
+          timeout 300s godot --headless --path . --import
+      - name: Test graphics, movement and crafting
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
           MESA_GL_VERSION_OVERRIDE: '3.3'
         run: |
           mkdir -p visual-artifacts
-          timeout 180s xvfb-run -a -s '-screen 0 1280x720x24'             godot --path . --rendering-driver opengl3             -s res://ci/visual_playtest.gd -- "$PWD/visual-artifacts"
-      - name: Publish screenshots and JSON report
+          timeout 180s xvfb-run -a -s '-screen 0 1280x720x24' godot --path . --rendering-driver opengl3 -s res://ci/visual_playtest.gd -- "$PWD/visual-artifacts"
+      - name: Upload screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pustosh-visual-test-results
+          name: pustosh-v75-visual-results
           path: visual-artifacts/
           if-no-files-found: warn
           retention-days: 7
